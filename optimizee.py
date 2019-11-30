@@ -6,7 +6,11 @@ from torch.autograd import Variable
 def f(x):
 
     return (((x+1)*(x+0.5)*x*(x-1))**2).sum()
+
 class optim():
+    '''
+    optimzee with grident descent
+    '''
     def __init__(self, batch_size, gradients, state, length, decay=0.90, learning_rate=0.01):
 
         self.grad = gradients
@@ -37,8 +41,6 @@ class optim():
                 self.state = torch.zeros(self.batch_size, self.len).cuda()
             else:
                 self.state = torch.zeros(self.batch_size, self.len)
-
-
 
         t =  Variable(x + tho*self.state, requires_grad =True)
 

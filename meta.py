@@ -10,6 +10,9 @@ def goal(w,x,y):
     return torch.mean(torch.sum((torch.matmul(w,x.unsqueeze(-1)).squeeze()-y)**2,dim=1),dim=0)
 
 class LSTM_FORMULA(nn.Module):
+    '''
+    make a LSTM optimizer
+    '''
     def __init__(self,input_size, hidden_num, layers, output_size,p,batch_size,process_flag=True):
         super(LSTM_FORMULA, self).__init__()
         self.input_size = input_size
@@ -33,6 +36,12 @@ class LSTM_FORMULA(nn.Module):
         return update.squeeze().squeeze(), state
 
     def process(self, x):
+            '''
+             "one potential challenge n training optimizers is that different input coordinates can have very different magnitudes.
+             This is indeed the case e.g. when the optimizee is a neural network and different parameters correspond to weights in different layers.
+             This can make training an optimizer difficult.
+             To this aim, one solution is to use the following formula."
+            '''
             if np.exp(-self.p)<= torch.max(torch.sum(torch.abs(x),dim=-1)):
                 gradient_sgn = torch.where(x<0, torch.full_like(x,-1), torch.full_like(x,1))
                 gradient_log = torch.clamp(torch.log(torch.abs(x))/self.p,min=-1,max=1)
@@ -62,6 +71,9 @@ class LSTM_FORMULA(nn.Module):
 
 
 class meta_learning():
+    '''
+    Train LSTM optimizer
+    '''
     def __init__(self, optimizer, input_size, output_size, layers, batch_size, hidden_num, global_iters, outer_iters, inner_iters,test_iters):
         self.layers = layers
         self.batch_size = batch_size
@@ -78,7 +90,7 @@ class meta_learning():
         self.state =None
         self.LSTM = optimizer
 
-    def init_parameters(self):
+    def init_parameters(self):  # initial parameters and input/output from an IID Gaussian distrubution
         self.w = torch.randn(self.batch_size, self.input_size, self.input_size, requires_grad=False)
         self.x = torch.zeros(self.batch_size, self.input_size, requires_grad=True)
         self.y = torch.randn(self.batch_size, self.output_size, requires_grad=False)
@@ -90,6 +102,7 @@ class meta_learning():
 
 
     def reset_parameters(self):
+        # To avoid overfitting, for each function, we need to reset its parameters and input/output from an IID Gaussian distrubution
         self.w = torch.randn(self.batch_size, self.input_size, self.input_size, requires_grad=False)
         self.x = torch.zeros(self.batch_size, self.input_size, requires_grad=True)
         self.y = torch.randn(self.batch_size, self.output_size, requires_grad=False)
@@ -101,6 +114,9 @@ class meta_learning():
             self.y = self.y.cuda()
 
     def train_optim(self,optim, iters):
+        '''
+        train each function with a LSTM optimizer for 20 steps
+        '''
         loss_sum = 0
 
         # state = None
@@ -122,12 +138,15 @@ class meta_learning():
             x = x + update
             x.retain_grad()
 
-        if state is not None:
+        if state is not None:   # we should retain this state of LSTM optimizer for each function~~ keeping 100 steps
                 self.state = (state[0].detach(), state[1].detach())
 
         return losses, loss_sum
 
     def lstm_optim(self, gradient, state):
+        '''
+         LSTM optimizer
+        '''
         if state is None:
             state = (torch.zeros((self.layers, self.batch_size, self.hidden_num)).cuda(),
                      torch.zeros((self.layers, self.batch_size, self.hidden_num)).cuda()
@@ -136,6 +155,10 @@ class meta_learning():
         return update, state
 
     def evaluate(self, optimizer_val, pre_iter):
+        '''
+          In order to get a good result, we can have a validation when we are training LSTM optimizer, and we can choose
+          one that its performance is the best.
+        '''
         with open('result/best_loss_sum.json', 'r') as f:
             loss_sum_json = json.load(f)
         f.close()
@@ -185,6 +208,9 @@ class meta_learning():
 
 
     def total_train(self):
+        '''
+        training main function
+        '''
         with open('result/best_loss_sum.json', 'w+') as json_file:
             global_loss_record = {}
             global_loss_record['best_loss_sum'] = 9999999
@@ -202,10 +228,10 @@ class meta_learning():
                                      lr=0.01)
         iter_for_reset = self.outer_iters // self.inner_iters
         loss_sum = 999999
-        for i in range(self.global_iters):
+        for i in range(self.global_iters):  # global iters
               print("global inters:\t{} loss_sum:\t{}".format(i,loss_sum))
               self.init_parameters()
-              for m in range(iter_for_reset):  # 5
+              for m in range(iter_for_reset):  # 5 iters in paper, and each function are optimized for 100 steps.
                     if m == 0:
                         self.reset_parameters()
                     if self.state is None:
@@ -224,6 +250,9 @@ class meta_learning():
         return losses_sum
 
     def meta_test(self,x,w,y):
+        '''
+         test our trained model with parameters from an IID Gaussian distrubution
+        '''
         # self.init_parameters()
         self.x = x
         self.w = w
