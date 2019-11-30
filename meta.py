@@ -40,11 +40,7 @@ class LSTM_FORMULA(nn.Module):
             else:
                 gradient_exp = torch.clamp(np.exp(self.p)*self.gradient,min=-1,max=1)
                 return torch.cat((-1*torch.from_numpy(np.ones_like(x)), gradient_exp),dim=-1)
-        # p  = self.p
-        # log = torch.log(torch.abs(x))
-        # clamp_log = torch.clamp(log/p , min = -1.0,max = 1.0)
-        # clamp_sign = torch.clamp(np.exp(p)*x, min = -1.0, max =1.0)
-        # return torch.cat((clamp_log,clamp_sign),dim = -1) #在gradients的最后一维input_dims拼接
+
 
     def forward(self, x, state):
         if torch.cuda.is_available():
@@ -256,7 +252,7 @@ def test_(input_size, output_size, layers, batch_size, hidden_num, global_iters,
         model_info = json.load(json_file)
     optimizer = torch.load('model/lstm_final_{}.pkl'.format(model_info['best_global_iter']))
     # optimizer = LSTM_FORMULA(input_size*2,hidden_num,layers,output_size,10,batch_size)   # 随机初始化模型
-    optimizer = torch.load('model/ok_my200.pkl').cuda()          # 1000 iters trained model
+    # optimizer = torch.load('model/ok_my200.pkl').cuda()          # 1000 iters trained model
     x = torch.zeros(batch_size, input_size, requires_grad=True)
     w = torch.randn(batch_size, input_size, input_size, requires_grad=False)
     y = torch.randn(batch_size, output_size, requires_grad=False)
@@ -291,7 +287,7 @@ def test_(input_size, output_size, layers, batch_size, hidden_num, global_iters,
     plt.plot(range(test_iters), loss_rms, label='rms')
     plt.plot(range(test_iters), loss_adam, label='adam')
     plt.legend(loc='best')
-    plt.savefig('result/test_losssum_{}_itersmy.jpg'.format(test_iters))
+    plt.savefig('result/test_losssum_{}_iters_new_formula.jpg'.format(test_iters))
     plt.show()
 
 
@@ -301,7 +297,7 @@ def main():
     layers = 2
     batch_size = 128
     hidden_num = 20
-    global_iters = 6
+    global_iters = 200
     outer_iters = 100
     inner_iters = 20
     test_iters = 50
